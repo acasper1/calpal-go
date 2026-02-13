@@ -1,0 +1,46 @@
+{{define "title"}}Home{{end}}
+
+{{define "main"}}
+<h1 class="mb-3">CalPal</h1>
+<p class="my-3">{{.PageTitle}}</p>
+<div class="row">
+    <div class="col-md-6">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th scope="col">Meal</th>
+                    <th scope="col">Food</th>
+                    <th scope="col">Calories</th>
+                </tr>
+            </thead>
+            <tbody id="meal-table">
+            {{range .Meals}}
+                {{ block "meal" .}}
+                    <tr>
+                        <td>{{.MealName}}</td>
+                        <td>{{.FoodName}}</td>
+                        <td>{{.Calories}}</td>
+                    </tr>
+                {{ end }}
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+    <div class="col-md-6">
+        <form hx-post="/meals/" hx-target="#meal-table" hx-swap="beforeend">
+            <div class="mb-3">
+                <label for="meal-name" class="form-label">Meal Name</label>
+                <input type="text" class="form-control" id="meal-name" name="meal-name">
+            </div>
+            <div class="mb-3">
+                <label for="food" class="form-label">Food</label>
+                <input type="text" class="form-control" id="food" name="food">
+            </div>
+            <div class="mb-3">
+                <label for="calories" class="form-label">Calories</label>
+                <input type="number" class="form-control" id="calories" name="calories">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Meal</button>
+        </form>
+</div>
+{{end}}
