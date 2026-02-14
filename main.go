@@ -20,14 +20,18 @@ type MealPageData struct {
 }
 
 type Food struct {
-	name     string
-	calories int16
+	FoodName string
+	Calories int16
 }
 
 type MealFood struct {
 	MealName string
 	FoodName string
 	Calories int16
+}
+
+type FoodPageData struct {
+	Foods []Food
 }
 
 var db *sql.DB
@@ -81,7 +85,7 @@ func GetMeals(w http.ResponseWriter, request *http.Request) {
 	}
 
 	data := MealPageData{
-		PageTitle: "My Meals",
+		PageTitle: "All Meals",
 		Meals:     meals,
 	}
 
@@ -152,7 +156,11 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 	})
 }
 
-func GetFoods(w http.ResponseWriter, request *http.Request) []Food {
+func GetFoods(w http.ResponseWriter, request *http.Request) {
+	files := []string{
+		"./templates/base.html",
+		"./templates/foods.html",
+	}
 	rows, err := db.Query(stmts.GetFoods)
 	if err != nil {
 		log.Fatal(err)
@@ -161,13 +169,20 @@ func GetFoods(w http.ResponseWriter, request *http.Request) []Food {
 	var foods []Food
 	for rows.Next() {
 		var food Food
-		if err = rows.Scan(&food.name, &food.calories); err != nil {
+		if err = rows.Scan(&food.FoodName, &food.Calories); err != nil {
 			log.Print(err)
 		}
 		foods = append(foods, food)
 	}
 
-	return foods
+	pageData := FoodPageData{
+		Foods: foods,
+	}
+	tmpl := template.Must(template.ParseFiles(files...))
+	err = tmpl.ExecuteTemplate(w, "base", pageData)
+	if err != nil {
+		log.Printf("Failed to execute template: %s\n", err)
+	}
 }
 
 func AddFood(w http.ResponseWriter, request *http.Request) {
@@ -209,7 +224,7 @@ func insertTestData(db *sql.DB) {
 	}
 
 	for _, f := range foods {
-		_, err := stmt.Exec(f.name, f.calories)
+		_, err := stmt.Exec(f.FoodName, f.Calories)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -259,7 +274,7 @@ func main() {
 
 	// Register routes and handlers
 	http.HandleFunc("/meals/", MealsHandler)
-	http.HandleFunc("/food/", FoodsHandler)
+	http.HandleFunc("/foods/", FoodsHandler)
 
 	http.ListenAndServe(":8080", nil)
 }
