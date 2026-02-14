@@ -1,0 +1,40 @@
+{{ define "title" }}Foods{{ end }}
+
+{{ define "main" }}
+<h1 class="mb-3">Your Foods</h1>
+<div class="row">
+    <div class="col-md-6">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Calories</th>
+                </tr>
+            </thead>
+            <tbody id="food-table">
+            {{range .Foods}}
+                {{ block "food" .}}
+                    <tr>
+                        <td>{{.FoodName}}</td>
+                        <td>{{.Calories}}</td>
+                    </tr>
+                {{ end }}
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+    <div class="col-md-6">
+        <form hx-post="/foods/" hx-target="#food-table" hx-swap="beforeend">
+            <div class="mb-3">
+                <label for="food-name" class="form-label">Food Name</label>
+                <input type="text" class="form-control" id="food-name" name="food-name">
+            </div>
+            <div class="mb-3">
+                <label for="calories" class="form-label">Calories</label>
+                <input type="number" class="form-control" id="calories" name="calories">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Food</button>
+        </form>
+    </div>
+</div>
+{{ end }}
