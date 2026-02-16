@@ -217,78 +217,6 @@ func AddFood(w http.ResponseWriter, request *http.Request) {
 	})
 }
 
-func insertTestData(db *sql.DB) {
-	// Test data
-	meals := []string{
-		"Breakfast",
-		"Lunch",
-		"Dinner",
-	}
-
-	foods := []Food{
-		{"Apple", 95},
-		{"Banana", 105},
-		{"Chicken Breast", 165},
-		{"Rice (1 cup)", 206},
-	}
-
-	// Insert test meal data into database
-	stmt, err := db.Prepare(stmts.InsertMeals)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, m := range meals {
-		_, err := stmt.Exec(m)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	// Insert test food data into database
-	stmt, err = db.Prepare(stmts.InsertFoods)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, f := range foods {
-		_, err := stmt.Exec(f.FoodName, f.Calories)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	// Insert test meal-food mappings into database
-	// TODO use sqlite's sqlite_sequence table to get the last inserted id instead of hardcoding ids
-	// Doing some basic math (subtracting the number of foods inserted from the max id) will get the id range for a transaction.
-	stmt, err = db.Prepare(stmts.InsertMealFoodMapping)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Breakfast: Apple, Banana
-	_, err = stmt.Exec(1, 1) // Breakfast - Apple
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = stmt.Exec(2, 2) // Lunch - Banana
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Dinner: Chicken Breast, Rice
-	_, err = stmt.Exec(3, 3) // Dinner - Chicken Breast
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = stmt.Exec(3, 4) // Dinner - Rice
-	if err != nil {
-		log.Fatal(err)
-	}
-	stmt.Close()
-	// End test data insertion
-}
-
 func main() {
 	// run db migrations on server start
 	var err error // this prevents re-declaring db variable -- use the global instead
@@ -298,7 +226,6 @@ func main() {
 	}
 	defer db.Close()
 	migrations.RunMigration(db)
-	insertTestData(db)
 
 	// Register routes and handlers
 	http.HandleFunc("/meals/", MealsHandler)
