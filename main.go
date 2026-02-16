@@ -186,7 +186,35 @@ func GetFoods(w http.ResponseWriter, request *http.Request) {
 }
 
 func AddFood(w http.ResponseWriter, request *http.Request) {
+	var foodName string
+	var calories int
+	var err error
+	files := []string{
+		"./templates/base.html",
+		"./templates/foods.html",
+	}
 
+	foodName = request.FormValue("food-name")
+	calories, err = strconv.Atoi(request.FormValue("calories"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var stmt *sql.Stmt
+	stmt, err = db.Prepare(stmts.InsertFoods)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = stmt.Exec(foodName, calories)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tmpl := template.Must(template.ParseFiles(files...))
+	tmpl.ExecuteTemplate(w, "food", Food{
+		FoodName: foodName,
+		Calories: int16(calories),
+	})
 }
 
 func insertTestData(db *sql.DB) {
