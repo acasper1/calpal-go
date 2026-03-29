@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"calpal-go/stmts"
+	query "calpal-go/stmts"
 
 	// consider replacing with modern sqlite implementation
 	_ "github.com/glebarez/go-sqlite"
@@ -35,7 +35,7 @@ type FoodPageData struct {
 	Foods []Food
 }
 
-//go:embed schema.sql
+//go:embed stmts/schema.sql
 var ddl string
 var db *sql.DB
 
@@ -81,7 +81,7 @@ func GetMeals(w http.ResponseWriter, request *http.Request) {
 		log.Fatal("Database connection closed!")
 	}
 
-	rows, err := db.Query(stmts.GetAllFoodsAndMeals)
+	rows, err := db.Query(query.GetAllFoodsAndMeals)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 
 	// Insert new food record
 	var stmt *sql.Stmt
-	stmt, err = db.Prepare(stmts.InsertFoods)
+	stmt, err = db.Prepare(query.InsertFoods)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 	// Add meal and meal_food_mapping records
 	foodId, _ := res.LastInsertId()
 
-	stmt, err = db.Prepare(stmts.InsertMeals)
+	stmt, err = db.Prepare(query.InsertMeals)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 	}
 	mealId, _ := res.LastInsertId()
 
-	stmt, err = db.Prepare(stmts.InsertMealFoodMapping)
+	stmt, err = db.Prepare(query.InsertMealFoodMapping)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func GetFoods(w http.ResponseWriter, request *http.Request) {
 		"./templates/base.html",
 		"./templates/foods.html",
 	}
-	rows, err := db.Query(stmts.GetFoods)
+	rows, err := db.Query(query.GetFoods)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func AddFood(w http.ResponseWriter, request *http.Request) {
 	}
 
 	var stmt *sql.Stmt
-	stmt, err = db.Prepare(stmts.InsertFoods)
+	stmt, err = db.Prepare(query.InsertFoods)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func UpdateFood(w http.ResponseWriter, request *http.Request) {
 	}
 
 	var stmt *sql.Stmt
-	stmt, err = db.Prepare(stmts.GetFood)
+	stmt, err = db.Prepare(query.GetFood)
 
 	// First, get old record, change whatever values need changing in DAO struct, then update db record
 	if err != nil {
