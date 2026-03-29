@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS meal_food_mappings;

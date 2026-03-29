@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	_ "embed"
 	"html/template"
 	"log"
 	"net/http"
 	"strconv"
 
-	"calpal-go/migrations"
 	"calpal-go/stmts"
 
 	// consider replacing with modern sqlite implementation
@@ -34,6 +35,8 @@ type FoodPageData struct {
 	Foods []Food
 }
 
+//go:embed schema.sql
+var ddl string
 var db *sql.DB
 
 func MealsHandler(w http.ResponseWriter, request *http.Request) {
@@ -42,6 +45,10 @@ func MealsHandler(w http.ResponseWriter, request *http.Request) {
 		GetMeals(w, request)
 	case http.MethodPost:
 		AddMeal(w, request)
+	case http.MethodPut:
+		UpdateMeal(w, request)
+	case http.MethodDelete:
+		DeleteMeal(w, request)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte(`Method Not Allowed`))
@@ -54,6 +61,10 @@ func FoodsHandler(w http.ResponseWriter, request *http.Request) {
 		GetFoods(w, request)
 	case http.MethodPost:
 		AddFood(w, request)
+	case http.MethodPut:
+		UpdateFood(w, request)
+	case http.MethodDelete:
+		DeleteFood(w, request)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte(`Method Not Allowed`))
@@ -156,6 +167,10 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 	})
 }
 
+func UpdateMeal(w http.ResponseWriter, request *http.Request) {}
+
+func DeleteMeal(w http.ResponseWriter, request *http.Request) {}
+
 func GetFoods(w http.ResponseWriter, request *http.Request) {
 	files := []string{
 		"./templates/base.html",
@@ -217,19 +232,66 @@ func AddFood(w http.ResponseWriter, request *http.Request) {
 	})
 }
 
-func main() {
-	// run db migrations on server start
-	var err error // this prevents re-declaring db variable -- use the global instead
-	db, err = sql.Open("sqlite", ":memory:")
+func UpdateFood(w http.ResponseWriter, request *http.Request) {
+	var newFoodName string
+	var newCalories int
+	var err error
+	files := []string{
+		"./templates/base.html",
+		"./templates/foods.html",
+	}
+
+	newFoodName = request.FormValue("food-name")
+	newCalories, err = strconv.Atoi(request.FormValue("calories"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
-	migrations.RunMigration(db)
+
+	var stmt *sql.Stmt
+	stmt, err = db.Prepare(stmts.GetFood)
+
+	// First, get old record, change whatever values need changing in DAO struct, then update db record
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = stmt.Exec(newFoodName, newCalories)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tmpl := template.Must(template.ParseFiles(files...))
+	tmpl.ExecuteTemplate(w, "food", Food{
+		FoodName: newFoodName,
+		Calories: int16(newCalories),
+	})
+}
+
+func DeleteFood(w http.ResponseWriter, request *http.Request) {}
+
+func run() error {
+	ctx := context.Background()
+
+	// run db migrations on server start
+	var err error
+	db, err = sql.Open("sqlite", ":memory:")
+	if err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, ddl); err != nil {
+		return err
+	}
 
 	// Register routes and handlers
 	http.HandleFunc("/meals/", MealsHandler)
 	http.HandleFunc("/foods/", FoodsHandler)
 
 	http.ListenAndServe(":8080", nil)
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
 }
