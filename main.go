@@ -9,35 +9,25 @@ import (
 	"net/http"
 	"strconv"
 
-	query "calpal-go/stmts"
+	query "github.com/acasper1/calpal-go/stmts"
 
-	// consider replacing with modern sqlite implementation
-	_ "github.com/glebarez/go-sqlite"
+	_ "modernc.org/sqlite"
 )
 
 type MealPageData struct {
 	PageTitle string
-	Meals     []MealFood
-}
-
-type Food struct {
-	FoodName string
-	Calories int16
-}
-
-type MealFood struct {
-	MealName string
-	FoodName string
-	Calories int16
+	Meals     []query.GetAllFoodsAndMealsRow
 }
 
 type FoodPageData struct {
-	Foods []Food
+	Foods []query.Food
 }
 
 //go:embed stmts/schema.sql
 var ddl string
 var db *sql.DB
+var q query.Queries
+var ctx context.Context
 
 func MealsHandler(w http.ResponseWriter, request *http.Request) {
 	switch request.Method {
@@ -81,18 +71,9 @@ func GetMeals(w http.ResponseWriter, request *http.Request) {
 		log.Fatal("Database connection closed!")
 	}
 
-	rows, err := db.Query(query.GetAllFoodsAndMeals)
+	meals, err := q.GetAllFoodsAndMeals(ctx)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	var meals []MealFood
-	for rows.Next() {
-		var meal MealFood
-		if err = rows.Scan(&meal.MealName, &meal.FoodName, &meal.Calories); err != nil {
-			log.Print(err)
-		}
-		meals = append(meals, meal)
 	}
 
 	data := MealPageData{
@@ -125,38 +106,18 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 	}
 
 	// Insert new food record
-	var stmt *sql.Stmt
-	stmt, err = db.Prepare(query.InsertFoods)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var res sql.Result
-	res, err = stmt.Exec(foodName, calories)
+	food, err := q.CreateFood(ctx, query.CreateFoodParams{Name: foodName, Calories: 0})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Add meal and meal_food_mapping records
-	foodId, _ := res.LastInsertId()
+	meal, err := q.CreateMeal(ctx, mealName)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	stmt, err = db.Prepare(query.InsertMeals)
-	if err != nil {
-		log.Fatal(err)
-	}
-	res, err = stmt.Exec(mealName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	mealId, _ := res.LastInsertId()
-
-	stmt, err = db.Prepare(query.InsertMealFoodMapping)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = stmt.Exec(mealId, foodId)
-	if err != nil {
-		log.Fatal(err)
-	}
+	_, err = q.CreateMealFoodMapping(ctx, query.CreateMealFoodMappingParams{MealID: meal.ID, FoodID: food.ID})
 
 	// re-render the page with the new meal added
 	tmpl := template.Must(template.ParseFiles(files...))
@@ -269,7 +230,7 @@ func UpdateFood(w http.ResponseWriter, request *http.Request) {
 func DeleteFood(w http.ResponseWriter, request *http.Request) {}
 
 func run() error {
-	ctx := context.Background()
+	ctx = context.Background()
 
 	// run db migrations on server start
 	var err error
@@ -281,6 +242,8 @@ func run() error {
 	if _, err := db.ExecContext(ctx, ddl); err != nil {
 		return err
 	}
+
+	q = *query.New(db)
 
 	// Register routes and handlers
 	http.HandleFunc("/meals/", MealsHandler)
