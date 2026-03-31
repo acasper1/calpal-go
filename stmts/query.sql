@@ -37,6 +37,6 @@ WHERE DATE(m.created_at) = DATE(?);
 
 -- name: UpdateFood :one
 UPDATE foods 
-SET name = ?, calories = ?
+SET name = ?, calories = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING *;

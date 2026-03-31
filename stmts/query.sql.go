@@ -239,7 +239,7 @@ func (q *Queries) GetMeals(ctx context.Context) ([]Meal, error) {
 
 const updateFood = `-- name: UpdateFood :one
 UPDATE foods 
-SET name = ?, calories = ?
+SET name = ?, calories = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, calories, created_at, updated_at
 `

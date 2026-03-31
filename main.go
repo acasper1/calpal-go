@@ -14,20 +14,15 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type MealPageData struct {
-	PageTitle string
-	Meals     []query.GetAllFoodsAndMealsRow
-}
-
-type FoodPageData struct {
-	Foods []query.Food
-}
-
 //go:embed stmts/schema.sql
 var ddl string
 var db *sql.DB
 var q query.Queries
 var ctx context.Context
+
+type FoodPageData struct {
+	Foods []query.Food
+}
 
 func MealsHandler(w http.ResponseWriter, request *http.Request) {
 	switch request.Method {
@@ -76,12 +71,9 @@ func GetMeals(w http.ResponseWriter, request *http.Request) {
 		log.Fatal(err)
 	}
 
-	data := MealPageData{
-		PageTitle: "All Meals",
-		Meals:     meals,
-	}
-
-	err = tmpl.ExecuteTemplate(w, "base", data)
+	err = tmpl.ExecuteTemplate(w, "base", struct {
+		Meals []query.GetAllFoodsAndMealsRow
+	}{Meals: meals})
 	if err != nil {
 		log.Printf("Failed to execute template: %s\n", err)
 	}
@@ -105,13 +97,11 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 		log.Fatal(err)
 	}
 
-	// Insert new food record
 	food, err := q.CreateFood(ctx, query.CreateFoodParams{Name: foodName, Calories: 0})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Add meal and meal_food_mapping records
 	meal, err := q.CreateMeal(ctx, mealName)
 	if err != nil {
 		log.Fatal(err)
@@ -121,7 +111,11 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 
 	// re-render the page with the new meal added
 	tmpl := template.Must(template.ParseFiles(files...))
-	tmpl.ExecuteTemplate(w, "meal", MealFood{
+	tmpl.ExecuteTemplate(w, "meal", struct {
+		MealName string
+		FoodName string
+		Calories int16
+	}{
 		MealName: mealName,
 		FoodName: foodName,
 		Calories: int16(calories),
@@ -137,18 +131,9 @@ func GetFoods(w http.ResponseWriter, request *http.Request) {
 		"./templates/base.html",
 		"./templates/foods.html",
 	}
-	rows, err := db.Query(query.GetFoods)
+	foods, err := q.GetFoods(ctx)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	var foods []Food
-	for rows.Next() {
-		var food Food
-		if err = rows.Scan(&food.FoodName, &food.Calories); err != nil {
-			log.Print(err)
-		}
-		foods = append(foods, food)
 	}
 
 	pageData := FoodPageData{
@@ -176,24 +161,14 @@ func AddFood(w http.ResponseWriter, request *http.Request) {
 		log.Fatal(err)
 	}
 
-	var stmt *sql.Stmt
-	stmt, err = db.Prepare(query.InsertFoods)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = stmt.Exec(foodName, calories)
-	if err != nil {
-		log.Fatal(err)
-	}
+	food, err := q.CreateFood(ctx, query.CreateFoodParams{Name: foodName, Calories: int64(calories)})
 
 	tmpl := template.Must(template.ParseFiles(files...))
-	tmpl.ExecuteTemplate(w, "food", Food{
-		FoodName: foodName,
-		Calories: int16(calories),
-	})
+	tmpl.ExecuteTemplate(w, "food", food)
 }
 
 func UpdateFood(w http.ResponseWriter, request *http.Request) {
+	var foodId int
 	var newFoodName string
 	var newCalories int
 	var err error
@@ -202,29 +177,23 @@ func UpdateFood(w http.ResponseWriter, request *http.Request) {
 		"./templates/foods.html",
 	}
 
+	foodId, err = strconv.Atoi(request.FormValue("food-id"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	newFoodName = request.FormValue("food-name")
 	newCalories, err = strconv.Atoi(request.FormValue("calories"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var stmt *sql.Stmt
-	stmt, err = db.Prepare(query.GetFood)
-
-	// First, get old record, change whatever values need changing in DAO struct, then update db record
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = stmt.Exec(newFoodName, newCalories)
+	food, err := q.UpdateFood(ctx, query.UpdateFoodParams{Name: newFoodName, Calories: int64(newCalories), ID: int64(foodId)})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	tmpl := template.Must(template.ParseFiles(files...))
-	tmpl.ExecuteTemplate(w, "food", Food{
-		FoodName: newFoodName,
-		Calories: int16(newCalories),
-	})
+	tmpl.ExecuteTemplate(w, "food", food)
 }
 
 func DeleteFood(w http.ResponseWriter, request *http.Request) {}
