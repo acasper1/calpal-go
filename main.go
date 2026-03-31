@@ -20,10 +20,6 @@ var db *sql.DB
 var q query.Queries
 var ctx context.Context
 
-type FoodPageData struct {
-	Foods []query.Food
-}
-
 func MealsHandler(w http.ResponseWriter, request *http.Request) {
 	switch request.Method {
 	case http.MethodGet:
@@ -136,11 +132,8 @@ func GetFoods(w http.ResponseWriter, request *http.Request) {
 		log.Fatal(err)
 	}
 
-	pageData := FoodPageData{
-		Foods: foods,
-	}
 	tmpl := template.Must(template.ParseFiles(files...))
-	err = tmpl.ExecuteTemplate(w, "base", pageData)
+	err = tmpl.ExecuteTemplate(w, "base", struct{ Foods []query.Food }{Foods: foods})
 	if err != nil {
 		log.Printf("Failed to execute template: %s\n", err)
 	}
