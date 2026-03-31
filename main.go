@@ -93,7 +93,7 @@ func AddMeal(w http.ResponseWriter, request *http.Request) {
 		log.Fatal(err)
 	}
 
-	food, err := q.CreateFood(ctx, query.CreateFoodParams{Name: foodName, Calories: 0})
+	food, err := q.CreateFood(ctx, query.CreateFoodParams{Name: foodName, Calories: int64(calories)})
 	if err != nil {
 		log.Fatal(err)
 	}
